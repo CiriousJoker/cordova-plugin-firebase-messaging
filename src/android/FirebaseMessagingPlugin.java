@@ -24,13 +24,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
+import io.paperdb.Paper;
 import me.leolin.shortcutbadger.ShortcutBadger;
 
 
 public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     private static final String TAG = "FirebaseMessagingPlugin";
-
     private JSONObject lastBundle;
     private boolean isBackground = false;
     private CallbackContext tokenRefreshCallback;
@@ -109,6 +110,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     @CordovaMethod
     private void onMessage(CallbackContext callbackContext) {
         instance.foregroundCallback = callbackContext;
+        handleQueuedNotifications();
     }
 
     @CordovaMethod
@@ -168,7 +170,23 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         this.isBackground = false;
     }
 
-    static void sendNotification(RemoteMessage remoteMessage) {
+    private void handleQueuedNotifications() {
+        Context context = cordova.getActivity().getApplicationContext();
+        Paper.init(context);
+        List<String> allKeys = Paper.book().getAllKeys();
+        for(String key: allKeys) {
+            JSONObject notificationData = Paper.book().read(key);
+
+            if (instance != null) {
+                CallbackContext callbackContext = instance.isBackground ?
+                        instance.backgroundCallback : instance.foregroundCallback;
+                instance.sendNotification(notificationData, callbackContext);
+                Paper.book().delete(key);
+            }
+        }
+    }
+
+    static JSONObject sendNotification(RemoteMessage remoteMessage) {
         JSONObject notificationData = new JSONObject(remoteMessage.getData());
         RemoteMessage.Notification notification = remoteMessage.getNotification();
         try {
@@ -188,13 +206,19 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
             notificationData.put("google.sent_time", remoteMessage.getSentTime());
 
             if (instance != null) {
+                Log.e(TAG, "Created notificationData. Instance: " +  instance.toString());
                 CallbackContext callbackContext = instance.isBackground ?
                     instance.backgroundCallback : instance.foregroundCallback;
                 instance.sendNotification(notificationData, callbackContext);
+                return null;
+            } else {
+                Log.e(TAG, "Created notificationData. Instance: null");
+                return notificationData;
             }
         } catch (JSONException e) {
             Log.e(TAG, "sendNotification", e);
         }
+        return null;
     }
 
     static void sendInstanceId(String instanceId) {
