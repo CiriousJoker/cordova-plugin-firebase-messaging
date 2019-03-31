@@ -1,3 +1,6 @@
+Changes in this forked version:
+Added a queue system & instant notification display for data messages.
+
 # cordova-plugin-firebase-messaging<br>[![NPM version][npm-version]][npm-url] [![NPM downloads][npm-downloads]][npm-url]
 > Cordova plugin for [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging/)
 
