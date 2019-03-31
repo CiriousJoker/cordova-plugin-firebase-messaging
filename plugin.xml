@@ -53,6 +53,7 @@ xmlns:android="http://schemas.android.com/apk/res/android"
         <preference name="FIREBASE_CORE_VERSION" default="16.0.+"/>
         <preference name="FIREBASE_MESSAGING_VERSION" default="17.4.+"/>
         <preference name="ANDROID_SUPPORT_VERSION" default="27.+"/>
+        <preference name="PAPER_VERSION" default="2.6+"/>
 
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="FirebaseMessaging">
@@ -75,6 +76,7 @@ xmlns:android="http://schemas.android.com/apk/res/android"
         <framework src="com.google.firebase:firebase-core:$FIREBASE_CORE_VERSION" />
         <framework src="com.google.firebase:firebase-messaging:$FIREBASE_MESSAGING_VERSION" />
         <framework src="com.android.support:support-compat:$ANDROID_SUPPORT_VERSION" />
+        <framework src="io.paperdb:paperdb:$PAPER_VERSION"/>
         <framework src="me.leolin:ShortcutBadger:1.1.17@aar"/>
 
         <source-file src="src/android/FirebaseMessagingPlugin.java"
