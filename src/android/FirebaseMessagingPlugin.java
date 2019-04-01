@@ -29,7 +29,6 @@ import java.util.Set;
 import io.paperdb.Paper;
 import me.leolin.shortcutbadger.ShortcutBadger;
 
-
 public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     private static final String TAG = "FirebaseMessagingPlugin";
     private JSONObject lastBundle;
@@ -52,32 +51,32 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
 
     @CordovaMethod
     private void subscribe(String topic, final CallbackContext callbackContext) {
-        FirebaseMessaging.getInstance().subscribeToTopic(topic)
-            .addOnCompleteListener(cordova.getActivity(), new OnCompleteListener<Void>() {
-                @Override
-                public void onComplete(Task<Void> task) {
-                    if (task.isSuccessful()) {
-                        callbackContext.success();
-                    } else {
-                        callbackContext.error(task.getException().getMessage());
+        FirebaseMessaging.getInstance().subscribeToTopic(topic).addOnCompleteListener(cordova.getActivity(),
+                new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(Task<Void> task) {
+                        if (task.isSuccessful()) {
+                            callbackContext.success();
+                        } else {
+                            callbackContext.error(task.getException().getMessage());
+                        }
                     }
-                }
-            });
+                });
     }
 
     @CordovaMethod
     private void unsubscribe(String topic, final CallbackContext callbackContext) {
-        FirebaseMessaging.getInstance().unsubscribeFromTopic(topic)
-            .addOnCompleteListener(cordova.getActivity(), new OnCompleteListener<Void>() {
-                @Override
-                public void onComplete(Task<Void> task) {
-                    if (task.isSuccessful()) {
-                        callbackContext.success();
-                    } else {
-                        callbackContext.error(task.getException().getMessage());
+        FirebaseMessaging.getInstance().unsubscribeFromTopic(topic).addOnCompleteListener(cordova.getActivity(),
+                new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(Task<Void> task) {
+                        if (task.isSuccessful()) {
+                            callbackContext.success();
+                        } else {
+                            callbackContext.error(task.getException().getMessage());
+                        }
                     }
-                }
-            });
+                });
     }
 
     @CordovaMethod
@@ -89,17 +88,17 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
 
     @CordovaMethod
     private void getToken(final CallbackContext callbackContext) {
-        FirebaseInstanceId.getInstance().getInstanceId()
-            .addOnCompleteListener(cordova.getActivity(), new OnCompleteListener<InstanceIdResult>() {
-                @Override
-                public void onComplete(Task<InstanceIdResult> task) {
-                    if (task.isSuccessful()) {
-                        callbackContext.success(task.getResult().getToken());
-                    } else {
-                        callbackContext.error(task.getException().getMessage());
+        FirebaseInstanceId.getInstance().getInstanceId().addOnCompleteListener(cordova.getActivity(),
+                new OnCompleteListener<InstanceIdResult>() {
+                    @Override
+                    public void onComplete(Task<InstanceIdResult> task) {
+                        if (task.isSuccessful()) {
+                            callbackContext.success(task.getResult().getToken());
+                        } else {
+                            callbackContext.error(task.getException().getMessage());
+                        }
                     }
-                }
-            });
+                });
     }
 
     @CordovaMethod
@@ -173,42 +172,27 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     private void handleQueuedNotifications() {
         Context context = cordova.getActivity().getApplicationContext();
         Paper.init(context);
-        List<String> allKeys = Paper.book().getAllKeys();
-        for(String key: allKeys) {
-            JSONObject notificationData = Paper.book().read(key);
+        var queue = Paper.book(R.strings.FCM_QUEUE_NAME);
+        List<String> allKeys = queue.getAllKeys();
+        for (String key : allKeys) {
+            JSONObject notificationData = queue.read(key);
 
             if (instance != null) {
-                CallbackContext callbackContext = instance.isBackground ?
-                        instance.backgroundCallback : instance.foregroundCallback;
+                CallbackContext callbackContext = instance.isBackground ? instance.backgroundCallback
+                        : instance.foregroundCallback;
                 instance.sendNotification(notificationData, callbackContext);
-                Paper.book().delete(key);
+                queue.delete(key);
             }
         }
     }
 
     static JSONObject sendNotification(RemoteMessage remoteMessage) {
-        JSONObject notificationData = new JSONObject(remoteMessage.getData());
-        RemoteMessage.Notification notification = remoteMessage.getNotification();
         try {
-            if (notification != null) {
-                JSONObject jsonNotification = new JSONObject();
-                jsonNotification.put("body", notification.getBody());
-                jsonNotification.put("title", notification.getTitle());
-                jsonNotification.put("sound", notification.getSound());
-                jsonNotification.put("icon", notification.getIcon());
-                jsonNotification.put("tag", notification.getTag());
-                jsonNotification.put("color", notification.getColor());
-                jsonNotification.put("clickAction", notification.getClickAction());
-
-                notificationData.put("gcm", jsonNotification);
-            }
-            notificationData.put("google.message_id", remoteMessage.getMessageId());
-            notificationData.put("google.sent_time", remoteMessage.getSentTime());
-
+            JSONObject notificationData = convertToNotificationData(remoteMessage);
             if (instance != null) {
-                Log.e(TAG, "Created notificationData. Instance: " +  instance.toString());
-                CallbackContext callbackContext = instance.isBackground ?
-                    instance.backgroundCallback : instance.foregroundCallback;
+                Log.e(TAG, "Created notificationData. Instance: " + instance.toString());
+                CallbackContext callbackContext = instance.isBackground ? instance.backgroundCallback
+                        : instance.foregroundCallback;
                 instance.sendNotification(notificationData, callbackContext);
                 return null;
             } else {
@@ -219,6 +203,26 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
             Log.e(TAG, "sendNotification", e);
         }
         return null;
+    }
+
+    static JSONObject convertToNotificationData(RemoteMessage remoteMessage) {
+        JSONObject notificationData = new JSONObject(remoteMessage.getData());
+        RemoteMessage.Notification notification = remoteMessage.getNotification();
+
+        if (notification != null) {
+            JSONObject jsonNotification = new JSONObject();
+            jsonNotification.put("body", notification.getBody());
+            jsonNotification.put("title", notification.getTitle());
+            jsonNotification.put("sound", notification.getSound());
+            jsonNotification.put("icon", notification.getIcon());
+            jsonNotification.put("tag", notification.getTag());
+            jsonNotification.put("color", notification.getColor());
+            jsonNotification.put("clickAction", notification.getClickAction());
+
+            notificationData.put("gcm", jsonNotification);
+        }
+        notificationData.put("google.message_id", remoteMessage.getMessageId());
+        notificationData.put("google.sent_time", remoteMessage.getSentTime());
     }
 
     static void sendInstanceId(String instanceId) {

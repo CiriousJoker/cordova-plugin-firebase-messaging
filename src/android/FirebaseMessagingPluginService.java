@@ -49,20 +49,22 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         if(notificationData != null) {
             // App was killed, store the notification for delayed delivery
             // TODO: Add book title "fcm_message_queue" as a string resource
-            Paper.book().write(Long.toString(new Date().getTime()), notificationData);
+            Paper.book(R.strings.FCM_QUEUE_NAME).write(Long.toString(new Date().getTime()), notificationData);
         }
-        showNotification();
+        JSONObject data = FirebaseMessagingPlugin.convertToNotificationData(remoteMessage);
+        showNotification(data);
+
         Intent intent = new Intent(ACTION_FCM_MESSAGE);
         intent.putExtra(EXTRA_FCM_MESSAGE, remoteMessage);
         this.broadcastManager.sendBroadcast(intent);
     }
 
-    private void showNotification() {
+    private void showNotification(JSONObject data) {
         String channelId = createNotificationChannel();
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(R.drawable.fcm_push_icon)
-                .setContentTitle("some title")
-                .setContentText("some body")
+                .setContentTitle(data.gcm.title)
+                .setContentText(data.gcm.body)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);

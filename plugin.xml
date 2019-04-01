@@ -1,7 +1,5 @@
-<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
-xmlns:android="http://schemas.android.com/apk/res/android"
-           id="cordova-plugin-firebase-messaging"
-      version="1.3.2">
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" 
+    xmlns:android="http://schemas.android.com/apk/res/android" id="cordova-plugin-firebase-messaging" version="1.3.2">
 
     <name>FirebaseMessagingPlugin</name>
     <description>Cordova plugin for Firebase Cloud Messaging</description>
@@ -62,6 +60,10 @@ xmlns:android="http://schemas.android.com/apk/res/android"
             </feature>
         </config-file>
 
+        <config-file target="res/values/strings.xml" parent="/*">
+            <string name="FCM_QUEUE_NAME">fcm_paper_queue</string>
+        </config-file>
+
         <config-file target="AndroidManifest.xml" parent="/manifest/application">
             <service android:name="by.chemerisuk.cordova.firebase.FirebaseMessagingPluginService">
                 <intent-filter>
@@ -79,10 +81,8 @@ xmlns:android="http://schemas.android.com/apk/res/android"
         <framework src="io.paperdb:paperdb:$PAPER_VERSION"/>
         <framework src="me.leolin:ShortcutBadger:1.1.17@aar"/>
 
-        <source-file src="src/android/FirebaseMessagingPlugin.java"
-            target-dir="src/by/chemerisuk/cordova/firebase/" />
-        <source-file src="src/android/FirebaseMessagingPluginService.java"
-            target-dir="src/by/chemerisuk/cordova/firebase" />
+        <source-file src="src/android/FirebaseMessagingPlugin.java" target-dir="src/by/chemerisuk/cordova/firebase/" />
+        <source-file src="src/android/FirebaseMessagingPluginService.java" target-dir="src/by/chemerisuk/cordova/firebase" />
     </platform>
 
 </plugin>
