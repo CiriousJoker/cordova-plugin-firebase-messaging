@@ -223,9 +223,10 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     }
 
     static void openUrl(String action, JSONObject data) {
-        JSONObject storedAction = null;
         try {
-            storedAction = data.put("action", action);
+            JSONObject storedAction = new JSONObject();
+            storedAction.put("action", action);
+            storedAction.put("notification", data);
             Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE).write(Long.toString(System.currentTimeMillis()), storedAction);
             if (instance != null) {
                 instance.handleQueuedNotificationActions();
