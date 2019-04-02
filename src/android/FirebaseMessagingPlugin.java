@@ -174,6 +174,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     @Override
     public void onResume(boolean multitasking) {
         this.isBackground = false;
+        this.clearNotifications();
     }
 
     private void handleQueuedNotifications() {

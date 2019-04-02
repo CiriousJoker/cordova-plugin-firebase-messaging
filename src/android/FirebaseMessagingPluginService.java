@@ -124,7 +124,6 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 notificationManager.notify(notificationId, builder.build());
                 // mapNotificationStyle.put(conversationId, style);
             } else {
-                // TODO:
                 // Remove map entries
                 // mapNotificationStyle.remove(conversationId);
                 mapNotificationIds.remove(conversationId);
