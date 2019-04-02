@@ -16,11 +16,11 @@ module.exports = {
     onTokenRefresh: function(success, error) {
         exec(success, error, PLUGIN_NAME, "onTokenRefresh", []);
     },
-    onMessage: function(callack, error) {
-        exec(callack, error, PLUGIN_NAME, "onMessage", []);
+    onMessage: function(resolve, error) {
+        exec(resolve, error, PLUGIN_NAME, "onMessage", []);
     },
-    onBackgroundMessage: function(callack, error) {
-        exec(callack, error, PLUGIN_NAME, "onBackgroundMessage", []);
+    onBackgroundMessage: function(resolve, error) {
+        exec(resolve, error, PLUGIN_NAME, "onBackgroundMessage", []);
     },
     revokeToken: function() {
         return new Promise(function(resolve, reject) {
@@ -51,5 +51,8 @@ module.exports = {
         return new Promise(function(resolve, reject) {
             exec(resolve, reject, PLUGIN_NAME, "clearNotifications", []);
         });
+    },
+    onNotificationAction: function(resolve, error) {
+        exec(resolve, error, PLUGIN_NAME, "onNotificationAction", []);
     }
 };

@@ -2,7 +2,11 @@ package by.chemerisuk.cordova.firebase;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
@@ -22,6 +26,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 
+import de.didactylus.didactduell.MainActivity;
 import de.didactylus.didactduell.R;
 import io.paperdb.Paper;
 
@@ -33,7 +38,25 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
     public static final String ACTION_FCM_TOKEN = "by.chemerisuk.cordova.firebase.ACTION_FCM_TOKEN";
     public static final String EXTRA_FCM_TOKEN = "by.chemerisuk.cordova.firebase.EXTRA_FCM_TOKEN";
 
+    public static final String ACTION_NOTIFICATION_TAP = "by.chemerisuk.cordova.firebase.ACTION_NOTIFICATION_TAP";
+    public static final String BOOK_NOTIFICATION_QUEUE = "by.chemerisuk.cordova.firebase.BOOK_NOTIFICATION_QUEUE";
+    public static final String BOOK_NOTIFICATION_ACTION_QUEUE = "by.chemerisuk.cordova.firebase.BOOK_NOTIFICATION_ACTION_QUEUE";
+
     private LocalBroadcastManager broadcastManager;
+
+    BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "onReceive()");
+            try {
+                JSONObject notificationData = new JSONObject(intent.getStringExtra("notification"));
+                FirebaseMessagingPlugin.openUrl(intent.getStringExtra("action"), notificationData);
+            } catch (JSONException e) {
+                Log.e(TAG, "onReceive(): Notification action intent is invalid.", e);
+            }
+        }
+    };
+
     private int notificationCounter = 0;
     private HashMap<String, Integer> mapNotificationIds = new HashMap<>();
     // private HashMap<String, NotificationCompat.MessagingStyle>
@@ -43,6 +66,10 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
     @Override
     public void onCreate() {
         this.broadcastManager = LocalBroadcastManager.getInstance(this);
+
+        IntentFilter filter = new IntentFilter(ACTION_NOTIFICATION_TAP);
+
+        registerReceiver(mReceiver, filter);
         Paper.init(this);
     }
 
@@ -61,7 +88,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         if (notificationData != null) {
             if (!FirebaseMessagingPlugin.sendNotification(remoteMessage)) {
                 // App was killed, store the notification for delayed delivery
-                Paper.book(getString(R.string.FCM_QUEUE_NAME)).write(Long.toString(new Date().getTime()),
+                Paper.book(BOOK_NOTIFICATION_QUEUE).write(Long.toString(new Date().getTime()),
                         notificationData);
             }
             showNotification(notificationData);
@@ -81,16 +108,23 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
             String body = data.getString("_body");
             String conversationId = data.getString("conversation");
 
+            Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
+            intent.putExtra("action", ACTION_NOTIFICATION_TAP);
+            intent.putExtra("notification", data.toString());
+
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
                     .setSmallIcon(R.drawable.fcm_push_icon)
-                    // .setContentTitle(title)
-                    // .setContentText(body)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setContentIntent(pendingIntent)
+                    .setAutoCancel(true);
+
+
             if (mapNotificationBuilder.containsKey(conversationId)) {
                 builder = mapNotificationBuilder.get(conversationId);
             } else {
                 mapNotificationBuilder.put(conversationId, builder);
-
             }
             assert builder != null;
 

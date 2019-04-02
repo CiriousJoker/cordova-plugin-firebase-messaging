@@ -1,6 +1,7 @@
 package by.chemerisuk.cordova.firebase;
 
 import android.app.NotificationManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -26,11 +27,13 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
+import de.didactylus.didactduell.MainActivity;
 import de.didactylus.didactduell.R;
 import io.paperdb.Book;
 import io.paperdb.Paper;
@@ -43,6 +46,8 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     private CallbackContext tokenRefreshCallback;
     private CallbackContext foregroundCallback;
     private CallbackContext backgroundCallback;
+    private CallbackContext callbackNotificationAction;
+
     private static FirebaseMessagingPlugin instance;
 
     @Override
@@ -114,6 +119,12 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     }
 
     @CordovaMethod
+    private void onNotificationAction(CallbackContext callbackContext) {
+        instance.callbackNotificationAction = callbackContext;
+        handleQueuedNotificationActions();
+    }
+
+    @CordovaMethod
     private void onMessage(CallbackContext callbackContext) {
         instance.foregroundCallback = callbackContext;
         handleQueuedNotifications();
@@ -175,12 +186,29 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     public void onResume(boolean multitasking) {
         this.isBackground = false;
         this.clearNotifications();
+        handleQueuedNotificationActions();
+    }
+
+
+    private void handleQueuedNotificationActions() {
+        Paper.init(cordova.getActivity().getApplicationContext());
+        Book queue = Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE);
+        List<String> allKeys = queue.getAllKeys();
+        for (String key : allKeys) {
+            JSONObject notificationAction = queue.read(key);
+
+            if (callbackNotificationAction != null) {
+                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, notificationAction);
+                pluginResult.setKeepCallback(true);
+                callbackNotificationAction.sendPluginResult(pluginResult);
+                queue.delete(key);
+            }
+        }
     }
 
     private void handleQueuedNotifications() {
-        Context context = cordova.getActivity().getApplicationContext();
-        Paper.init(context);
-        Book queue = Paper.book(instance.cordova.getContext().getString(R.string.FCM_QUEUE_NAME));
+        Paper.init(cordova.getActivity().getApplicationContext());
+        Book queue = Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_QUEUE);
         List<String> allKeys = queue.getAllKeys();
         for (String key : allKeys) {
             JSONObject notificationData = queue.read(key);
@@ -192,6 +220,23 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
                 queue.delete(key);
             }
         }
+    }
+
+    static void openUrl(String action, JSONObject data) {
+        JSONObject storedAction = null;
+        try {
+            storedAction = data.put("action", action);
+            Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE).write(Long.toString(System.currentTimeMillis()), storedAction);
+            if (instance != null) {
+                instance.handleQueuedNotificationActions();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        Context context = instance.cordova.getContext();
+        Intent intentStartMainActivity = new Intent(context, MainActivity.class);
+        context.startActivity(intentStartMainActivity);
     }
 
     static boolean sendNotification(RemoteMessage remoteMessage) {
@@ -212,6 +257,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         return false;
     }
 
+    @CordovaMethod
     private void clearNotifications() {
         NotificationManager notificationManager = (NotificationManager) instance.cordova.getContext()
                 .getSystemService(Context.NOTIFICATION_SERVICE);
