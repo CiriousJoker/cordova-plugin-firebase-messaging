@@ -1,5 +1,6 @@
 package by.chemerisuk.cordova.firebase;
 
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -26,6 +27,12 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+
+import de.didactylus.didactduell.R;
+import io.paperdb.Book;
 import io.paperdb.Paper;
 import me.leolin.shortcutbadger.ShortcutBadger;
 
@@ -172,7 +179,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     private void handleQueuedNotifications() {
         Context context = cordova.getActivity().getApplicationContext();
         Paper.init(context);
-        var queue = Paper.book(R.strings.FCM_QUEUE_NAME);
+        Book queue = Paper.book(instance.cordova.getContext().getString(R.string.FCM_QUEUE_NAME));
         List<String> allKeys = queue.getAllKeys();
         for (String key : allKeys) {
             JSONObject notificationData = queue.read(key);
@@ -186,43 +193,68 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         }
     }
 
-    static JSONObject sendNotification(RemoteMessage remoteMessage) {
-        try {
-            JSONObject notificationData = convertToNotificationData(remoteMessage);
-            if (instance != null) {
-                Log.e(TAG, "Created notificationData. Instance: " + instance.toString());
-                CallbackContext callbackContext = instance.isBackground ? instance.backgroundCallback
-                        : instance.foregroundCallback;
-                instance.sendNotification(notificationData, callbackContext);
-                return null;
-            } else {
-                Log.e(TAG, "Created notificationData. Instance: null");
-                return notificationData;
-            }
-        } catch (JSONException e) {
-            Log.e(TAG, "sendNotification", e);
+    static boolean sendNotification(RemoteMessage remoteMessage) {
+        JSONObject notificationData = convertToNotificationData(remoteMessage);
+        if (notificationData == null) {
+            return false;
         }
-        return null;
+
+        if (instance != null) {
+            Log.e(TAG, "Created notificationData. Instance: " + instance.toString());
+            CallbackContext callbackContext = instance.isBackground ? instance.backgroundCallback
+                    : instance.foregroundCallback;
+            instance.sendNotification(notificationData, callbackContext);
+            return true;
+        } else {
+            Log.e(TAG, "Created notificationData. Instance: null");
+        }
+        return false;
+    }
+
+    private void clearNotifications() {
+        NotificationManager notificationManager = (NotificationManager) instance.cordova.getContext()
+                .getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.cancelAll();
+    }
+
+    static boolean currentUrlContains(String part) {
+        if (instance != null && !instance.isBackground) {
+            FutureTask<String> futureResult = new FutureTask<>(() -> instance.webView.getUrl());
+
+            instance.cordova.getActivity().runOnUiThread(futureResult);
+            try {
+                return futureResult.get().contains(part);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     static JSONObject convertToNotificationData(RemoteMessage remoteMessage) {
         JSONObject notificationData = new JSONObject(remoteMessage.getData());
         RemoteMessage.Notification notification = remoteMessage.getNotification();
 
-        if (notification != null) {
-            JSONObject jsonNotification = new JSONObject();
-            jsonNotification.put("body", notification.getBody());
-            jsonNotification.put("title", notification.getTitle());
-            jsonNotification.put("sound", notification.getSound());
-            jsonNotification.put("icon", notification.getIcon());
-            jsonNotification.put("tag", notification.getTag());
-            jsonNotification.put("color", notification.getColor());
-            jsonNotification.put("clickAction", notification.getClickAction());
+        try {
+            if (notification != null) {
+                JSONObject jsonNotification = new JSONObject();
+                jsonNotification.put("body", notification.getBody());
+                jsonNotification.put("title", notification.getTitle());
+                jsonNotification.put("sound", notification.getSound());
+                jsonNotification.put("icon", notification.getIcon());
+                jsonNotification.put("tag", notification.getTag());
+                jsonNotification.put("color", notification.getColor());
+                jsonNotification.put("clickAction", notification.getClickAction());
 
-            notificationData.put("gcm", jsonNotification);
+                notificationData.put("gcm", jsonNotification);
+            }
+            notificationData.put("google.message_id", remoteMessage.getMessageId());
+            notificationData.put("google.sent_time", remoteMessage.getSentTime());
+            return notificationData;
+        } catch (JSONException e) {
+            Log.e(TAG, "convertToNotificationData", e);
+            return null;
         }
-        notificationData.put("google.message_id", remoteMessage.getMessageId());
-        notificationData.put("google.sent_time", remoteMessage.getSentTime());
     }
 
     static void sendInstanceId(String instanceId) {

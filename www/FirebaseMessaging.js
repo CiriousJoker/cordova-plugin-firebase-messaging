@@ -46,5 +46,10 @@ module.exports = {
         return new Promise(function(resolve, reject) {
             exec(resolve, reject, PLUGIN_NAME, "requestPermission", []);
         });
+    },
+    clearNotifications: () => {
+        return new Promise(function(resolve, reject) {
+            exec(resolve, reject, PLUGIN_NAME, "clearNotifications", []);
+        });
     }
 };
