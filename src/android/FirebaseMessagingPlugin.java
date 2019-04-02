@@ -189,7 +189,6 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         handleQueuedNotificationActions();
     }
 
-
     private void handleQueuedNotificationActions() {
         Paper.init(cordova.getActivity().getApplicationContext());
         Book queue = Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE);
@@ -222,22 +221,12 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         }
     }
 
-    static void openUrl(String action, JSONObject data) {
-        try {
-            JSONObject storedAction = new JSONObject();
-            storedAction.put("action", action);
-            storedAction.put("notification", data);
-            Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE).write(Long.toString(System.currentTimeMillis()), storedAction);
-            if (instance != null) {
-                instance.handleQueuedNotificationActions();
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
+    static void openUrl(JSONObject action) {
+        Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE)
+                .write(Long.toString(System.currentTimeMillis()), action);
+        if (instance != null) {
+            instance.handleQueuedNotificationActions();
         }
-
-        Context context = instance.cordova.getContext();
-        Intent intentStartMainActivity = new Intent(context, MainActivity.class);
-        context.startActivity(intentStartMainActivity);
     }
 
     static boolean sendNotification(RemoteMessage remoteMessage) {
@@ -247,13 +236,12 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         }
 
         if (instance != null) {
-            Log.e(TAG, "Created notificationData. Instance: " + instance.toString());
             CallbackContext callbackContext = instance.isBackground ? instance.backgroundCallback
                     : instance.foregroundCallback;
             instance.sendNotification(notificationData, callbackContext);
             return true;
         } else {
-            Log.e(TAG, "Created notificationData. Instance: null");
+            Log.e(TAG, "sendNotification() | App is currently killed. Notification was queued instead.");
         }
         return false;
     }

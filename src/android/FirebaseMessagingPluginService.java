@@ -41,6 +41,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
     public static final String ACTION_NOTIFICATION_TAP = "by.chemerisuk.cordova.firebase.ACTION_NOTIFICATION_TAP";
     public static final String BOOK_NOTIFICATION_QUEUE = "by.chemerisuk.cordova.firebase.BOOK_NOTIFICATION_QUEUE";
     public static final String BOOK_NOTIFICATION_ACTION_QUEUE = "by.chemerisuk.cordova.firebase.BOOK_NOTIFICATION_ACTION_QUEUE";
+    public static final String CHANNEL_CHAT_MESSAGES = "by.chemerisuk.cordova.firebase.CHANNEL_CHAT_MESSAGES";
 
     private LocalBroadcastManager broadcastManager;
 
@@ -49,8 +50,15 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         public void onReceive(Context context, Intent intent) {
             Log.d(TAG, "onReceive()");
             try {
-                JSONObject notificationData = new JSONObject(intent.getStringExtra("notification"));
-                FirebaseMessagingPlugin.openUrl(intent.getStringExtra("action"), notificationData);
+                JSONObject action = new JSONObject();
+                action.put("action", intent.getStringExtra("action"));
+                action.put("notification", intent.getStringExtra("notification"));
+                FirebaseMessagingPlugin.openUrl(action);
+
+                Intent intentStartMainActivity = new Intent(context, MainActivity.class);
+                intentStartMainActivity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intentStartMainActivity);
+
             } catch (JSONException e) {
                 Log.e(TAG, "onReceive(): Notification action intent is invalid.", e);
             }
@@ -59,8 +67,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
 
     private int notificationCounter = 0;
     private HashMap<String, Integer> mapNotificationIds = new HashMap<>();
-    // private HashMap<String, NotificationCompat.MessagingStyle>
-    // mapNotificationStyle = new HashMap<>();
+
     private HashMap<String, NotificationCompat.Builder> mapNotificationBuilder = new HashMap<>();
 
     @Override
@@ -88,8 +95,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         if (notificationData != null) {
             if (!FirebaseMessagingPlugin.sendNotification(remoteMessage)) {
                 // App was killed, store the notification for delayed delivery
-                Paper.book(BOOK_NOTIFICATION_QUEUE).write(Long.toString(new Date().getTime()),
-                        notificationData);
+                Paper.book(BOOK_NOTIFICATION_QUEUE).write(Long.toString(new Date().getTime()), notificationData);
             }
             showNotification(notificationData);
         }
@@ -108,18 +114,9 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
             String body = data.getString("_body");
             String conversationId = data.getString("conversation");
 
-            Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
-            intent.putExtra("action", ACTION_NOTIFICATION_TAP);
-            intent.putExtra("notification", data.toString());
-
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
-                    .setSmallIcon(R.drawable.fcm_push_icon)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setContentIntent(pendingIntent)
+                    .setSmallIcon(R.drawable.fcm_push_icon).setPriority(NotificationCompat.PRIORITY_DEFAULT)
                     .setAutoCancel(true);
-
 
             if (mapNotificationBuilder.containsKey(conversationId)) {
                 builder = mapNotificationBuilder.get(conversationId);
@@ -127,6 +124,14 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 mapNotificationBuilder.put(conversationId, builder);
             }
             assert builder != null;
+
+            // Set intents
+            Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
+            intent.putExtra("action", "tap");
+            intent.putExtra("notification", data.toString());
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent,
+                    PendingIntent.FLAG_CANCEL_CURRENT);
+            builder.setContentIntent(pendingIntent);
 
             if (!FirebaseMessagingPlugin.currentUrlContains(conversationId)) {
                 // Get notification id
@@ -140,31 +145,15 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                     notificationCounter++;
                 }
 
-                // NotificationCompat.MessagingStyle style = new
-                // NotificationCompat.MessagingStyle("Some title");
-                // if (mapNotificationStyle.containsKey(conversationId)) {
-                // style = mapNotificationStyle.get(conversationId);
-                // } else {
-                // mapNotificationStyle.put(conversationId, style);
-                // }
-                // assert style != null;
-
-                // Add messsages & set style
-                // style.addMessage(body, System.currentTimeMillis(), title);
-                // builder.setStyle(style);
                 builder.setContentTitle(title);
                 builder.setContentText(body);
 
                 notificationManager.notify(notificationId, builder.build());
-                // mapNotificationStyle.put(conversationId, style);
             } else {
                 // Remove map entries
-                // mapNotificationStyle.remove(conversationId);
                 mapNotificationIds.remove(conversationId);
                 mapNotificationBuilder.remove(conversationId);
             }
-
-            // TODO: Add update functionality for new messages in the same conversation
         } catch (JSONException e) {
             Log.e(TAG, "showNotification", e);
         }
@@ -172,23 +161,17 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
     }
 
     private String createNotificationChannel() {
-        String channelId = "channelid";
-
-        // Create the NotificationChannel, but only on API 26+ because
-        // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "Chat Nachrichten"; // getString(R.string.channel_name);
             String description = "Benachrichtigungen von Freunden"; // getString(R.string.channel_description);
             int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(channelId, name, importance);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_CHAT_MESSAGES, name, importance);
             channel.setDescription(description);
-            // Register the channel with the system; you can't change the importance
-            // or other notification behaviors after this
 
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
 
-        return channelId;
+        return CHANNEL_CHAT_MESSAGES;
     }
 }
