@@ -1,7 +1,6 @@
 package by.chemerisuk.cordova.firebase;
 
 import android.app.NotificationManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -27,14 +26,8 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
-
-import de.didactylus.didactduell.MainActivity;
-import de.didactylus.didactduell.R;
 import io.paperdb.Book;
 import io.paperdb.Paper;
 import me.leolin.shortcutbadger.ShortcutBadger;
@@ -189,6 +182,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         handleQueuedNotificationActions();
     }
 
+
     private void handleQueuedNotificationActions() {
         Paper.init(cordova.getActivity().getApplicationContext());
         Book queue = Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE);
@@ -222,8 +216,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     }
 
     static void openUrl(JSONObject action) {
-        Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE)
-                .write(Long.toString(System.currentTimeMillis()), action);
+        Paper.book(FirebaseMessagingPluginService.BOOK_NOTIFICATION_ACTION_QUEUE).write(Long.toString(System.currentTimeMillis()), action);
         if (instance != null) {
             instance.handleQueuedNotificationActions();
         }

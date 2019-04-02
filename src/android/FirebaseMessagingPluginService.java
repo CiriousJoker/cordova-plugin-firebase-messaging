@@ -11,7 +11,6 @@ import android.os.Build;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.LocalBroadcastManager;
-import android.text.format.DateUtils;
 import android.util.Log;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -19,12 +18,8 @@ import com.google.firebase.messaging.RemoteMessage;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
 
 import de.didactylus.didactduell.MainActivity;
 import de.didactylus.didactduell.R;
@@ -52,7 +47,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
             try {
                 JSONObject action = new JSONObject();
                 action.put("action", intent.getStringExtra("action"));
-                action.put("notification", intent.getStringExtra("notification"));
+                action.put("notification", new JSONObject(intent.getStringExtra("notification")));
                 FirebaseMessagingPlugin.openUrl(action);
 
                 Intent intentStartMainActivity = new Intent(context, MainActivity.class);
@@ -95,7 +90,8 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         if (notificationData != null) {
             if (!FirebaseMessagingPlugin.sendNotification(remoteMessage)) {
                 // App was killed, store the notification for delayed delivery
-                Paper.book(BOOK_NOTIFICATION_QUEUE).write(Long.toString(new Date().getTime()), notificationData);
+                Paper.book(BOOK_NOTIFICATION_QUEUE).write(Long.toString(new Date().getTime()),
+                        notificationData);
             }
             showNotification(notificationData);
         }
@@ -115,8 +111,10 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
             String conversationId = data.getString("conversation");
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
-                    .setSmallIcon(R.drawable.fcm_push_icon).setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setSmallIcon(R.drawable.fcm_push_icon)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                     .setAutoCancel(true);
+
 
             if (mapNotificationBuilder.containsKey(conversationId)) {
                 builder = mapNotificationBuilder.get(conversationId);
@@ -129,8 +127,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
             Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
             intent.putExtra("action", "tap");
             intent.putExtra("notification", data.toString());
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent,
-                    PendingIntent.FLAG_CANCEL_CURRENT);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
             builder.setContentIntent(pendingIntent);
 
             if (!FirebaseMessagingPlugin.currentUrlContains(conversationId)) {
