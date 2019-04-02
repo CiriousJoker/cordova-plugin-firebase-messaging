@@ -5,8 +5,8 @@
     <description>Cordova plugin for Firebase Cloud Messaging</description>
     <license>MIT</license>
     <keywords>cordova</keywords>
-    <repo>https://github.com/chemerisuk/cordova-plugin-firebase-messaging</repo>
-    <issue>https://github.com/chemerisuk/cordova-plugin-firebase-messaging/issues</issue>
+    <repo>https://github.com/CiriousJoker/cordova-plugin-firebase-messaging</repo>
+    <issue>https://github.com/CiriousJoker/cordova-plugin-firebase-messaging/issues</issue>
 
     <js-module src="www/FirebaseMessaging.js" name="FirebaseMessaging">
         <merges target="cordova.plugins.firebase.messaging" />
