@@ -21,6 +21,7 @@ import com.google.firebase.iid.InstanceIdResult;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.PluginResult;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -36,6 +37,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     private static final String TAG = "FirebaseMessagingPlugin";
     private JSONObject lastBundle;
     private boolean isBackground = false;
+    private boolean forceShow = false;
     private CallbackContext tokenRefreshCallback;
     private CallbackContext foregroundCallback;
     private CallbackContext backgroundCallback;
@@ -92,9 +94,13 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     }
 
     @CordovaMethod
-    private void getToken(final CallbackContext callbackContext) {
-        FirebaseInstanceId.getInstance().getInstanceId().addOnCompleteListener(cordova.getActivity(),
-                new OnCompleteListener<InstanceIdResult>() {
+    private void getToken(String type, final CallbackContext callbackContext) {
+        if (type != null) {
+            callbackContext.sendPluginResult(
+                new PluginResult(PluginResult.Status.OK, (String)null));
+        } else {
+            FirebaseInstanceId.getInstance().getInstanceId()
+                .addOnCompleteListener(cordova.getActivity(), new OnCompleteListener<InstanceIdResult>() {
                     @Override
                     public void onComplete(Task<InstanceIdResult> task) {
                         if (task.isSuccessful()) {
@@ -104,6 +110,7 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
                         }
                     }
                 });
+        }
     }
 
     @CordovaMethod
@@ -153,12 +160,15 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
     }
 
     @CordovaMethod
-    private void requestPermission(CallbackContext callbackContext) {
+    private void requestPermission(JSONObject options, CallbackContext callbackContext) throws JSONException {
         Context context = cordova.getActivity().getApplicationContext();
+
+        this.forceShow = options.optBoolean("forceShow");
+
         if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
             callbackContext.success();
         } else {
-            callbackContext.error("Push notifications are disabled");
+            callbackContext.error("Notifications permission is not granted");
         }
     }
 
@@ -294,6 +304,10 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
                 instance.tokenRefreshCallback.sendPluginResult(pluginResult);
             }
         }
+    }
+
+    static boolean isForceShow() {
+        return instance != null && instance.forceShow;
     }
 
     private void sendNotification(JSONObject notificationData, CallbackContext callbackContext) {

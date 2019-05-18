@@ -27,9 +27,9 @@ module.exports = {
             exec(resolve, reject, PLUGIN_NAME, "revokeToken", []);
         });
     },
-    getToken: function() {
+    getToken: function(type) {
         return new Promise(function(resolve, reject) {
-            exec(resolve, reject, PLUGIN_NAME, "getToken", []);
+            exec(resolve, reject, PLUGIN_NAME, "getToken", [type]);
         });
     },
     setBadge: function(value) {
@@ -42,9 +42,15 @@ module.exports = {
             exec(resolve, reject, PLUGIN_NAME, "getBadge", []);
         });
     },
-    requestPermission: function() {
+    requestPermission: function(options) {
         return new Promise(function(resolve, reject) {
-            exec(resolve, reject, PLUGIN_NAME, "requestPermission", []);
+            if (options) {
+                if (typeof options.forceShow !== "boolean" && typeof options.forceShow !== "undefined") {
+                    throw new TypeError("forceShow must be a boolean");
+                }
+            }
+
+            exec(resolve, reject, PLUGIN_NAME, "requestPermission", [options || {}]);
         });
     },
     clearNotifications: () => {

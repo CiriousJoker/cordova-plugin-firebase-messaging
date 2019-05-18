@@ -2,78 +2,40 @@
 #import <Cordova/CDV.h>
 #import "AppDelegate.h"
 
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-@import UserNotifications;
-
-// Implement UNUserNotificationCenterDelegate to receive display notification via APNS for devices
-// running iOS 10 and above. Implement FIRMessagingDelegate to receive data message via FCM for
-// devices running iOS 10 and above.
-@interface FirebaseMessagingPlugin () <FIRMessagingDelegate, UNUserNotificationCenterDelegate>
-@end
-#endif
-
-// Copied from Apple's header in case it is missing in some cases (e.g. pre-Xcode 8 builds).
-#ifndef NSFoundationVersionNumber_iOS_9_x_Max
-#define NSFoundationVersionNumber_iOS_9_x_Max 1299
-#endif
+@import Firebase;
 
 @implementation FirebaseMessagingPlugin
 
 - (void)pluginInitialize {
     NSLog(@"Starting Firebase Messaging plugin");
-
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(finishLaunching:) name:UIApplicationDidFinishLaunchingNotification object:nil];
-
-    if(![FIRApp defaultApp]) {
-        [FIRApp configure];
-    }
-}
-
-- (void)finishLaunching:(NSNotification *)notification {
-    [FIRMessaging messaging].delegate = self;
-    // iOS 10 or later
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-    [UNUserNotificationCenter currentNotificationCenter].delegate = self;
-#endif
-
-    if (notification) {
-        NSDictionary *launchOptions = [notification userInfo];
-        if (launchOptions) {
-            NSDictionary *userInfo = launchOptions[UIApplicationLaunchOptionsRemoteNotificationKey];
-            if (userInfo) {
-                [self sendBackgroundNotification:userInfo];
-            }
-        }
-    }
 }
 
 - (void)requestPermission:(CDVInvokedUrlCommand *)command {
-    self.registerCallbackId = command.callbackId;
+    NSDictionary* options = [command.arguments objectAtIndex:0];
 
-    if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
-        UIUserNotificationType allNotificationTypes =
-        (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationActivationModeBackground);
-        UIUserNotificationSettings *settings =
-        [UIUserNotificationSettings settingsForTypes:allNotificationTypes categories:nil];
-        [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
+    NSNumber* forceShowSetting = options[@"forceShow"];
+    if (forceShowSetting && [forceShowSetting boolValue]) {
+        self.forceShow = UNNotificationPresentationOptionBadge |
+            UNNotificationPresentationOptionSound | UNNotificationPresentationOptionAlert;
     } else {
-        // iOS 10 or later
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-        UNAuthorizationOptions authOptions =
-        (UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge);
-        [[UNUserNotificationCenter currentNotificationCenter]
-         requestAuthorizationWithOptions:authOptions
-         completionHandler:^(BOOL granted, NSError * _Nullable error) {
-             // if (error) {
-             //     [self registerNotifications:error];
-             // } else if (granted) {
-             //     [[UIApplication sharedApplication] registerForRemoteNotifications];
-             // } else {
-             //     // TODO?
-             // }
-         }];
-#endif
+        self.forceShow = UNNotificationPresentationOptionNone;
     }
+
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    UNAuthorizationOptions authOptions = (UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge);
+    [center requestAuthorizationWithOptions:authOptions
+                          completionHandler:^(BOOL granted, NSError * _Nullable error) {
+                              CDVPluginResult *pluginResult;
+                              if (error) {
+                                  pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+                              } else if (!granted) {
+                                  pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Notifications permission is not granted"];
+                              } else {
+                                  pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+                              }
+
+                              [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+                          }];
 
     [[UIApplication sharedApplication] registerForRemoteNotifications];
 }
@@ -91,21 +53,45 @@
 }
 
 - (void)getToken:(CDVInvokedUrlCommand *)command {
-    NSString *fcmToken = [FIRMessaging messaging].FCMToken;
-    if (fcmToken) {
-        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:fcmToken];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } else {
-        [[FIRInstanceID instanceID] instanceIDWithHandler:^(FIRInstanceIDResult * _Nullable result,
-                                                            NSError * _Nullable error) {
-            CDVPluginResult *pluginResult;
-            if (error) {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+    CDVPluginResult *pluginResult;
+    NSString* type = [command.arguments objectAtIndex:0];
+
+    if (![type isKindOfClass:[NSString class]]) {
+        NSString *fcmToken = [FIRMessaging messaging].FCMToken;
+        if (fcmToken) {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:fcmToken];
+        } else {
+            [[FIRInstanceID instanceID] instanceIDWithHandler:^(FIRInstanceIDResult * _Nullable result,
+                                                                NSError * _Nullable error) {
+                CDVPluginResult *pluginResult;
+                if (error) {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
+                } else {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:result.token];
+                }
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            }];
+        }
+    } else if ([type hasPrefix:@"apns-"]) {
+        NSData* apnsToken = [FIRMessaging messaging].APNSToken;
+        if (apnsToken) {
+            if ([type isEqualToString:@"apns-buffer"]) {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArrayBuffer:apnsToken];
+            } else if ([type isEqualToString:@"apns-string"]) {
+                NSString* hexToken = [[apnsToken.description componentsSeparatedByCharactersInSet:[[NSCharacterSet alphanumericCharacterSet]invertedSet]]componentsJoinedByString:@""];
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:hexToken];
             } else {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:result.token];
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Invalid APNS token type argument"];
             }
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        }];
+        } else {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:nil];
+        }
+    } else {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:nil];
+    }
+
+    if (pluginResult) {
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }
 }
 
@@ -173,23 +159,6 @@
     self.tokenRefreshCallbackId = command.callbackId;
 }
 
-- (void)registerNotifications:(NSError *)error {
-    if (self.registerCallbackId) {
-        CDVPluginResult *pluginResult;
-        if (error) {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.localizedDescription];
-        } else {
-            NSData* apnsToken = [FIRMessaging messaging].APNSToken;
-            if (apnsToken) {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArrayBuffer:apnsToken];
-            } else {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:nil];
-            }
-        }
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.registerCallbackId];
-    }
-}
-
 - (void)sendNotification:(NSDictionary *)userInfo {
     if (self.notificationCallbackId) {
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:userInfo];
@@ -208,35 +177,7 @@
     }
 }
 
-# pragma mark - UNUserNotificationCenterDelegate
-// Receive displayed notifications for iOS 10 devices.
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-// Handle incoming notification messages while app is in the foreground.
-- (void)userNotificationCenter:(UNUserNotificationCenter *)center
-       willPresentNotification:(UNNotification *)notification
-         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
-    NSDictionary *userInfo = notification.request.content.userInfo;
-    UNNotificationPresentationOptions options = UNNotificationPresentationOptionNone;
-
-    [self sendNotification:userInfo];
-    // Change this to your preferred presentation option
-    completionHandler(options);
-}
-
-// Handle notification messages after display notification is tapped by the user.
-- (void)userNotificationCenter:(UNUserNotificationCenter *)center
-didReceiveNotificationResponse:(UNNotificationResponse *)response
-         withCompletionHandler:(void (^)(void))completionHandler {
-    NSDictionary *userInfo = response.notification.request.content.userInfo;
-    [self sendBackgroundNotification:userInfo];
-
-    completionHandler();
-}
-#endif
-
-# pragma mark - FIRMessagingDelegate
-
-- (void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken {
+- (void)sendToken:(NSString *)fcmToken {
     if (self.tokenRefreshCallbackId != nil) {
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.tokenRefreshCallbackId];

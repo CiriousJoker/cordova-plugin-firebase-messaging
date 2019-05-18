@@ -1,5 +1,5 @@
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" 
-    xmlns:android="http://schemas.android.com/apk/res/android" id="cordova-plugin-firebase-messaging" version="2.0.0">
+    xmlns:android="http://schemas.android.com/apk/res/android" id="cordova-plugin-firebase-messaging" version="2.1.2">
 
     <name>FirebaseMessagingPlugin</name>
     <description>Cordova plugin for Firebase Cloud Messaging</description>
@@ -15,7 +15,7 @@
     <engines>
         <engine name="cordova" version=">=7.1.0"/>
         <engine name="cordova-android" version=">=7.0.0"/>
-        <engine name="cordova-ios" version=">=4.3.0"/>
+        <engine name="cordova-ios" version=">=5.0.0"/>
     </engines>
 
     <platform name="ios">
@@ -43,15 +43,23 @@
         <header-file src="src/ios/FirebaseMessagingPlugin.h" />
         <source-file src="src/ios/FirebaseMessagingPlugin.m" />
 
-        <framework src="Firebase/Core" type="podspec" spec="~> 5.0"/>
-        <framework src="Firebase/Messaging" type="podspec" spec="~> 5.2"/>
+        <podspec>
+            <config>
+                <source url="https://github.com/CocoaPods/Specs.git"/>
+            </config>
+            <pods>
+                <pod name="Firebase/Core" spec="~> 6.0.0" />
+                <pod name="Firebase/Messaging" spec="~> 6.0.0" />
+            </pods>
+        </podspec>
     </platform>
 
     <platform name="android">
-        <preference name="FIREBASE_CORE_VERSION" default="16.0.+"/>
-        <preference name="FIREBASE_MESSAGING_VERSION" default="17.4.+"/>
-        <preference name="ANDROID_SUPPORT_VERSION" default="27.+"/>
         <preference name="PAPER_VERSION" default="2.6+"/>
+
+        <preference name="FIREBASE_CORE_VERSION" default="16.0.+"/>
+        <preference name="FIREBASE_MESSAGING_VERSION" default="18.0.+"/>
+        <preference name="ANDROID_SUPPORT_VERSION" default="28.+"/>
 
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="FirebaseMessaging">
@@ -75,7 +83,7 @@
         <framework src="com.google.firebase:firebase-messaging:$FIREBASE_MESSAGING_VERSION" />
         <framework src="com.android.support:support-compat:$ANDROID_SUPPORT_VERSION" />
         <framework src="io.paperdb:paperdb:$PAPER_VERSION"/>
-        <framework src="me.leolin:ShortcutBadger:1.1.17@aar"/>
+        <framework src="me.leolin:ShortcutBadger:1.1.22@aar"/>
 
         <source-file src="src/android/FirebaseMessagingPlugin.java" target-dir="src/by/chemerisuk/cordova/firebase/" />
         <source-file src="src/android/FirebaseMessagingPluginService.java" target-dir="src/by/chemerisuk/cordova/firebase" />

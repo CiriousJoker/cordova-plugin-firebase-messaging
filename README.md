@@ -1,16 +1,17 @@
-Changes in this forked version:
+#### Changes in this forked version:
 Added a queue system & instant notification display for data messages.
 
-# cordova-plugin-firebase-messaging<br>[![NPM version][npm-version]][npm-url] [![NPM downloads][npm-downloads]][npm-url]
-> Cordova plugin for [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging/)
+# Cordova plugin for [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging/)
+[![NPM version][npm-version]][npm-url] [![NPM downloads][npm-downloads]][npm-url] [![Twitter][twitter-follow]][twitter-url]
 
-* [Installation](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#installation)
-* [Methods](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#methods)
+* [Installation](#installation)
+* [Supported Platforms](#supported-platforms)
+* [Methods](#methods)
 
 Android tips:
-* [Set custom default notification channel](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#set-custom-default-notification-channel)
-* [Set custom default notification icon](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#set-custom-default-notification-icon)
-* [Set custom default notification color](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#set-custom-default-notification-color)
+* [Set custom default notification channel](#set-custom-default-notification-channel)
+* [Set custom default notification icon](#set-custom-default-notification-icon)
+* [Set custom default notification color](#set-custom-default-notification-color)
 
 ## Installation
 
@@ -48,19 +49,31 @@ cordova.plugins.firebase.messaging.onBackgroundMessage(function(payload) {
 });
 ```
 
-### requestPermission
+### requestPermission(_options_)
 Grant permission to recieve push notifications (will trigger prompt on iOS).
 ```js
-cordova.plugins.firebase.messaging.requestPermission().then(function(token) {
-    console.log("APNS device token: ", token);
+cordova.plugins.firebase.messaging.requestPermission().then(function() {
+    console.log("Push messaging is allowed");
+});
+```
+In `options` object you can specify a boolean setting `forceShow`. When `true` this setting forces notification to display even when app is in foreground:
+```js
+cordova.plugins.firebase.messaging.requestPermission({forceShow: true}).then(function() {
+    console.log("You'll get foreground notifications when a push message arrives");
 });
 ```
 
-### getToken
+### getToken(_type_)
 Returns a promise that fulfills with the current FCM token.
 ```js
 cordova.plugins.firebase.messaging.getToken().then(function(token) {
     console.log("Got device token: ", token);
+});
+```
+This method also accepts optional argument `type`. Currently iOS implementation supports values `"apns-buffer"` and `"apns-string"` that defines presentation of resolved APNS token:
+```js
+cordova.plugins.firebase.messaging.getToken("apns-string").then(function(token) {
+    console.log("APNS hex device token: ", token);
 });
 ```
 
@@ -144,3 +157,5 @@ You can also define what color is used with your notification. Different android
 [npm-url]: https://www.npmjs.com/package/cordova-plugin-firebase-messaging
 [npm-version]: https://img.shields.io/npm/v/cordova-plugin-firebase-messaging.svg
 [npm-downloads]: https://img.shields.io/npm/dm/cordova-plugin-firebase-messaging.svg
+[twitter-url]: https://twitter.com/chemerisuk
+[twitter-follow]: https://img.shields.io/twitter/follow/chemerisuk.svg?style=social&label=Follow%20me
