@@ -1,13 +1,14 @@
-# cordova-plugin-firebase-messaging<br>[![NPM version][npm-version]][npm-url] [![NPM downloads][npm-downloads]][npm-url] [![Twitter][twitter-follow]][twitter-url]
-> Cordova plugin for [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging/)
+# Cordova plugin for [Firebase Cloud Messaging](https://firebase.google.com/docs/cloud-messaging/)
+[![NPM version][npm-version]][npm-url] [![NPM downloads][npm-downloads]][npm-url] [![Twitter][twitter-follow]][twitter-url]
 
-* [Installation](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#installation)
-* [Methods](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#methods)
+* [Installation](#installation)
+* [Supported Platforms](#supported-platforms)
+* [Methods](#methods)
 
 Android tips:
-* [Set custom default notification channel](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#set-custom-default-notification-channel)
-* [Set custom default notification icon](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#set-custom-default-notification-icon)
-* [Set custom default notification color](https://github.com/chemerisuk/cordova-plugin-firebase-messaging#set-custom-default-notification-color)
+* [Set custom default notification channel](#set-custom-default-notification-channel)
+* [Set custom default notification icon](#set-custom-default-notification-icon)
+* [Set custom default notification color](#set-custom-default-notification-color)
 
 ## Installation
 
