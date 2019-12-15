@@ -18,6 +18,8 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
+import android.text.Html;
+import android.text.SpannableString;
 import android.util.Log;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -139,6 +141,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, notification.getChannelId());
         builder.setContentTitle(notification.getTitle());
         builder.setContentText(notification.getBody());
+
         builder.setGroup(notification.getTag());
         builder.setSmallIcon(this.defaultNotificationIcon);
         builder.setColor(this.defaultNotificationColor);
@@ -222,7 +225,9 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 }
 
                 builder.setContentTitle(title);
-                builder.setContentText(body);
+
+                SpannableString formattedBody = new SpannableString(Html.fromHtml(body));
+                builder.setContentText(formattedBody);
 
                 notificationManager.notify(notificationId, builder.build());
             } else {
