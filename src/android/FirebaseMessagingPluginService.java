@@ -25,6 +25,8 @@ import com.google.firebase.messaging.RemoteMessage;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -169,7 +171,23 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         try {
             String title = data.getString("_title");
             String body = data.getString("_body");
-            String conversationId = data.getString("conversation");
+            String sender = data.getString("sender");
+
+            JSONObject target = new JSONObject(data.getString("target")) ;
+            String type = target.getString("type");
+            String id = target.getString("id");
+
+
+            String conversationId;
+
+            if(type.equals("uid")) {
+                String[] uids = new String[]{sender, id};
+                Arrays.sort(uids);
+                conversationId = uids[0] + "_" + uids[1];
+            } else {
+                conversationId = id;
+            }
+
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
                     .setSmallIcon(R.drawable.fcm_push_icon)
