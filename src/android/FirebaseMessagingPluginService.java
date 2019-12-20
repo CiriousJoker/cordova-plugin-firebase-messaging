@@ -191,6 +191,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
     }
 
     private void showNotification(JSONObject data) {
+        Log.d(TAG, "showNotification()");
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 
         try {
@@ -251,7 +252,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                     mapNotificationBuilder.remove(chatId);
                 }
             } else if(type.equals("gamerequest")) {
-                String channelId = createNotificationChannel(CHANNEL_CHAT_MESSAGES, "Spielanfragen", "Benachrichtigungen zu Spielanfragen");
+                String channelId = createNotificationChannel(CHANNEL_GAMEREQUESTS, "Spielanfragen", "Benachrichtigungen zu Spielanfragen");
 
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
                         .setSmallIcon(R.drawable.fcm_push_icon)
@@ -274,7 +275,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                     notificationManager.notify(0, builder.build());
                 }
             } else if(type.equals("friendrequest")) {
-                String channelId = createNotificationChannel(CHANNEL_CHAT_MESSAGES, "Freundschaftsanfragen", "Benachrichtigungen zu Freundschaftsanfragen");
+                String channelId = createNotificationChannel(CHANNEL_FRIENDREQUESTS, "Freundschaftsanfragen", "Benachrichtigungen zu Freundschaftsanfragen");
 
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
                         .setSmallIcon(R.drawable.fcm_push_icon)
