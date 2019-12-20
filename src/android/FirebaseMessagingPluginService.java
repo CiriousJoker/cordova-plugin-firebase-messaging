@@ -18,8 +18,6 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
-import android.text.Html;
-import android.text.SpannableString;
 import android.util.Log;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -51,7 +49,10 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
     public static final String ACTION_NOTIFICATION_TAP = "by.chemerisuk.cordova.firebase.ACTION_NOTIFICATION_TAP";
     public static final String BOOK_NOTIFICATION_QUEUE = "by.chemerisuk.cordova.firebase.BOOK_NOTIFICATION_QUEUE";
     public static final String BOOK_NOTIFICATION_ACTION_QUEUE = "by.chemerisuk.cordova.firebase.BOOK_NOTIFICATION_ACTION_QUEUE";
+
     public static final String CHANNEL_CHAT_MESSAGES = "by.chemerisuk.cordova.firebase.CHANNEL_CHAT_MESSAGES";
+    public static final String CHANNEL_GAMEREQUESTS = "by.chemerisuk.cordova.firebase.CHANNEL_GAMEREQUESTS";
+    public static final String CHANNEL_FRIENDREQUESTS = "by.chemerisuk.cordova.firebase.CHANNEL_FRIENDREQUESTS";
 
     private LocalBroadcastManager broadcastManager;
     private NotificationManager notificationManager;
@@ -141,7 +142,6 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, notification.getChannelId());
         builder.setContentTitle(notification.getTitle());
         builder.setContentText(notification.getBody());
-
         builder.setGroup(notification.getTag());
         builder.setSmallIcon(this.defaultNotificationIcon);
         builder.setColor(this.defaultNotificationColor);
@@ -167,86 +167,149 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         }
     }
 
+    private String getChatIdFromMessage(JSONObject message) {
+        try {
+            String from = message.getString("fromWrapped");
+            JSONObject recipients = new JSONObject(message.getString("recipients"));
+            String type = recipients.getString("type");
+            String id = recipients.getString("id");
+
+            if(type.equals("chat")) {
+                return id;
+            } else if(type.equals("uid")) {
+
+                String[] uids =new String[]{from, id};
+                Arrays.sort(uids);
+                return String.join("_", uids);
+            }
+        } catch(JSONException e) {
+            Log.e(TAG, "Failed to get chat id", e);
+            return null;
+        }
+
+        return null;
+    }
+
     private void showNotification(JSONObject data) {
-        String channelId = createNotificationChannel();
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 
         try {
+            String type = data.getString("_type");
+
             String title = data.getString("_title");
             String body = data.getString("_body");
-            String sender = data.getString("sender");
 
-            JSONObject target = new JSONObject(data.getString("target")) ;
-            String type = target.getString("type");
-            String id = target.getString("id");
+            if(type.equals("chatmessage")) {
+                String channelId = createNotificationChannel(CHANNEL_CHAT_MESSAGES, "Chat Nachrichten", "Benachrichtigungen zu eingehenden Chat Nachrichten");
+                String chatId = getChatIdFromMessage(data);
 
+                NotificationCompat.Builder builder;
 
-            String conversationId;
-
-            if(type.equals("uid")) {
-                String[] uids = new String[]{sender, id};
-                Arrays.sort(uids);
-                conversationId = uids[0] + "_" + uids[1];
-            } else {
-                conversationId = id;
-            }
-
-
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
-                    .setSmallIcon(R.drawable.fcm_push_icon)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true);
-
-
-            if (mapNotificationBuilder.containsKey(conversationId)) {
-                builder = mapNotificationBuilder.get(conversationId);
-            } else {
-                mapNotificationBuilder.put(conversationId, builder);
-            }
-            assert builder != null;
-
-            // Set intents
-            Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
-            intent.putExtra("action", "tap");
-            intent.putExtra("notification", data.toString());
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-            builder.setContentIntent(pendingIntent);
-
-            if (!FirebaseMessagingPlugin.currentUrlContains(conversationId)) {
-                // Get notification id
-                int notificationId = notificationCounter;
-                if (mapNotificationIds.containsKey(conversationId)) {
-                    Integer value = mapNotificationIds.get(conversationId);
-                    assert value != null;
-                    notificationId = value;
+                // Get the appropriate notificationbuilder (either a new one or the previous one to update its notification)
+                if (mapNotificationBuilder.containsKey(chatId)) {
+                    builder = mapNotificationBuilder.get(chatId);
                 } else {
-                    mapNotificationIds.put(conversationId, notificationId);
-                    notificationCounter++;
+                    builder = new NotificationCompat.Builder(this, channelId)
+                            .setSmallIcon(R.drawable.fcm_push_icon)
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .setAutoCancel(true);
+                    mapNotificationBuilder.put(chatId, builder);
                 }
+                assert builder != null;
+
+                // Set intents
+                Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
+                intent.putExtra("action", "tap");
+                intent.putExtra("notification", data.toString());
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                builder.setContentIntent(pendingIntent);
+
+                // TODO: Fix this
+                String fromUid = data.getString("fromWrapped");
+                JSONObject recipients = new JSONObject(data.getString("recipients"));
+                String toUid = recipients.getString("id");
+
+                if (!FirebaseMessagingPlugin.currentUrlContains(fromUid) || !FirebaseMessagingPlugin.currentUrlContains(toUid)) {
+                    // Get notification id
+                    int notificationId = notificationCounter;
+                    if (mapNotificationIds.containsKey(chatId)) {
+                        Integer value = mapNotificationIds.get(chatId);
+                        assert value != null;
+                        notificationId = value;
+                    } else {
+                        mapNotificationIds.put(chatId, notificationId);
+                        notificationCounter++;
+                    }
+
+                    builder.setContentTitle(title);
+                    builder.setContentText(body);
+
+                    notificationManager.notify(notificationId, builder.build());
+                } else {
+                    // Remove map entries
+                    mapNotificationIds.remove(chatId);
+                    mapNotificationBuilder.remove(chatId);
+                }
+            } else if(type.equals("gamerequest")) {
+                String channelId = createNotificationChannel(CHANNEL_CHAT_MESSAGES, "Spielanfragen", "Benachrichtigungen zu Spielanfragen");
+
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
+                        .setSmallIcon(R.drawable.fcm_push_icon)
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setAutoCancel(true);
+
+
+                // Set intents
+                Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
+                intent.putExtra("action", "tap");
+                intent.putExtra("notification", data.toString());
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                builder.setContentIntent(pendingIntent);
+
+                // TODO: Fix this
+
 
                 builder.setContentTitle(title);
+                builder.setContentText(body);
 
-                SpannableString formattedBody = new SpannableString(Html.fromHtml(body));
-                builder.setContentText(formattedBody);
+                notificationManager.notify(0, builder.build());
+            } else if(type.equals("friendrequest")) {
+                String channelId = createNotificationChannel(CHANNEL_CHAT_MESSAGES, "Freundschaftsanfragen", "Benachrichtigungen zu Freundschaftsanfragen");
 
-                notificationManager.notify(notificationId, builder.build());
-            } else {
-                // Remove map entries
-                mapNotificationIds.remove(conversationId);
-                mapNotificationBuilder.remove(conversationId);
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
+                        .setSmallIcon(R.drawable.fcm_push_icon)
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setAutoCancel(true);
+
+
+                // Set intents
+                Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
+                intent.putExtra("action", "tap");
+                intent.putExtra("notification", data.toString());
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                builder.setContentIntent(pendingIntent);
+
+                // TODO: Fix this
+
+
+                builder.setContentTitle(title);
+                builder.setContentText(body);
+
+                notificationManager.notify(0, builder.build());
             }
+
+
+
         } catch (JSONException e) {
             Log.e(TAG, "showNotification", e);
         }
 
     }
 
-    private String createNotificationChannel() {
+    private String createNotificationChannel(String id, CharSequence name, String description) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = "Chat Nachrichten"; // getString(R.string.channel_name);
-            String description = "Benachrichtigungen von Freunden"; // getString(R.string.channel_description);
             int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_CHAT_MESSAGES, name, importance);
+            NotificationChannel channel = new NotificationChannel(id, name, importance);
             channel.setDescription(description);
 
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
