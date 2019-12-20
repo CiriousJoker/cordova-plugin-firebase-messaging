@@ -266,13 +266,13 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
                 builder.setContentIntent(pendingIntent);
 
-                // TODO: Fix this
+                // Only show the notification if the app isn't open
+                if (!FirebaseMessagingPlugin.currentUrlContains("dashboard")) {
+                    builder.setContentTitle(title);
+                    builder.setContentText(body);
 
-
-                builder.setContentTitle(title);
-                builder.setContentText(body);
-
-                notificationManager.notify(0, builder.build());
+                    notificationManager.notify(0, builder.build());
+                }
             } else if(type.equals("friendrequest")) {
                 String channelId = createNotificationChannel(CHANNEL_CHAT_MESSAGES, "Freundschaftsanfragen", "Benachrichtigungen zu Freundschaftsanfragen");
 
@@ -289,13 +289,13 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
                 builder.setContentIntent(pendingIntent);
 
-                // TODO: Fix this
+                // Only show the notification if the app isn't open
+                if (!FirebaseMessagingPlugin.currentUrlContains("dashboard")) {
+                    builder.setContentTitle(title);
+                    builder.setContentText(body);
 
-
-                builder.setContentTitle(title);
-                builder.setContentText(body);
-
-                notificationManager.notify(0, builder.build());
+                    notificationManager.notify(0, builder.build());
+                }
             }
 
 
