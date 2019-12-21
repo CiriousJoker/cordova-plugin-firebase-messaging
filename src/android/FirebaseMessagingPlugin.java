@@ -310,6 +310,10 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         return instance != null && instance.forceShow;
     }
 
+    static boolean isForeground() {
+        return instance != null && !instance.isBackground;
+    }
+
     private void sendNotification(JSONObject notificationData, CallbackContext callbackContext) {
         if (callbackContext != null) {
             PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, notificationData);
