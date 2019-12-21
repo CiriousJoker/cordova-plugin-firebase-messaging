@@ -14,6 +14,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
@@ -149,7 +150,7 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         builder.setSound(getNotificationSound(notification.getSound()));
         builder.setPriority(1);
 
-        this.notificationManager.notify(0, builder.build());
+        this.notificationManager.notify((int) SystemClock.uptimeMillis(), builder.build());
         // dismiss notification to hide icon from status bar automatically
         new Handler(getMainLooper()).postDelayed(new Runnable() {
             @Override
@@ -190,15 +191,22 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
         return null;
     }
 
-    private void showNotification(JSONObject data) {
+    private void showNotification(JSONObject notificationEncoded) {
         Log.d(TAG, "showNotification()");
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 
+        JSONObject data;
         try {
-            String type = data.getString("_type");
+            data = new JSONObject(notificationEncoded.getString("data"));
+        } catch(JSONException ignored) {
+            data = new JSONObject();
+        }
 
-            String title = data.getString("_title");
-            String body = data.getString("_body");
+        try {
+            String type = notificationEncoded.getString("type");
+
+            String title = notificationEncoded.getString("_title");
+            String body = notificationEncoded.getString("_body");
 
             if(type.equals("chatmessage")) {
                 String channelId = createNotificationChannel(CHANNEL_CHAT_MESSAGES, "Chat Nachrichten", "Benachrichtigungen zu eingehenden Chat Nachrichten");
@@ -221,16 +229,17 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 // Set intents
                 Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
                 intent.putExtra("action", "tap");
-                intent.putExtra("notification", data.toString());
+                intent.putExtra("notification", notificationEncoded.toString());
                 PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
                 builder.setContentIntent(pendingIntent);
 
-                // TODO: Fix this
-                String fromUid = data.getString("fromWrapped");
+                String fromUid = data.getString("from");
                 JSONObject recipients = new JSONObject(data.getString("recipients"));
                 String toUid = recipients.getString("id");
 
-                if (!FirebaseMessagingPlugin.currentUrlContains(fromUid) || !FirebaseMessagingPlugin.currentUrlContains(toUid)) {
+                if (!FirebaseMessagingPlugin.isForeground()
+                        || (!FirebaseMessagingPlugin.currentUrlContains(fromUid)
+                        && !FirebaseMessagingPlugin.currentUrlContains(toUid))) {
                     // Get notification id
                     int notificationId = notificationCounter;
                     if (mapNotificationIds.containsKey(chatId)) {
@@ -263,19 +272,43 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 // Set intents
                 Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
                 intent.putExtra("action", "tap");
-                intent.putExtra("notification", data.toString());
+                intent.putExtra("notification", notificationEncoded.toString());
                 PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
                 builder.setContentIntent(pendingIntent);
 
                 // Only show the notification if the app isn't open
-                if (!FirebaseMessagingPlugin.currentUrlContains("dashboard")) {
+                if (!FirebaseMessagingPlugin.isForeground()
+                        || !FirebaseMessagingPlugin.currentUrlContains("dashboard")) {
                     builder.setContentTitle(title);
                     builder.setContentText(body);
 
-                    notificationManager.notify(0, builder.build());
+                    notificationManager.notify((int) SystemClock.uptimeMillis(), builder.build());
                 }
             } else if(type.equals("friendrequest")) {
                 String channelId = createNotificationChannel(CHANNEL_FRIENDREQUESTS, "Freundschaftsanfragen", "Benachrichtigungen zu Freundschaftsanfragen");
+
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
+                        .setSmallIcon(R.drawable.fcm_push_icon)
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setAutoCancel(true);
+
+                // Set intents
+                Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
+                intent.putExtra("action", "tap");
+                intent.putExtra("notification", notificationEncoded.toString());
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                builder.setContentIntent(pendingIntent);
+
+                // Only show the notification if the app isn't open
+                if (!FirebaseMessagingPlugin.isForeground()
+                        || !FirebaseMessagingPlugin.currentUrlContains("dashboard")) {
+                    builder.setContentTitle(title);
+                    builder.setContentText(body);
+
+                    notificationManager.notify((int) SystemClock.uptimeMillis(), builder.build());
+                }
+            } else if(type.equals("gameinfo")) {
+                String channelId = createNotificationChannel(CHANNEL_FRIENDREQUESTS, "Spiel Updates", "Benachrichtigungen zu Spielen");
 
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
                         .setSmallIcon(R.drawable.fcm_push_icon)
@@ -286,16 +319,21 @@ public class FirebaseMessagingPluginService extends FirebaseMessagingService {
                 // Set intents
                 Intent intent = new Intent(ACTION_NOTIFICATION_TAP);
                 intent.putExtra("action", "tap");
-                intent.putExtra("notification", data.toString());
+                intent.putExtra("notification", notificationEncoded.toString());
                 PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
                 builder.setContentIntent(pendingIntent);
 
+                String gameId = data.getString("id");
+
                 // Only show the notification if the app isn't open
-                if (!FirebaseMessagingPlugin.currentUrlContains("dashboard")) {
+                if (!FirebaseMessagingPlugin.isForeground()
+                        || (!FirebaseMessagingPlugin.currentUrlContains("dashboard")
+                        && !FirebaseMessagingPlugin.currentUrlContains("game")
+                        && !FirebaseMessagingPlugin.currentUrlContains(gameId))) {
                     builder.setContentTitle(title);
                     builder.setContentText(body);
 
-                    notificationManager.notify(0, builder.build());
+                    notificationManager.notify((int) SystemClock.uptimeMillis(), builder.build());
                 }
             }
 
